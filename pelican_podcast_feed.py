@@ -190,7 +190,7 @@ class iTunesWriter(Writer):
         ``item`` being passed.
         This method is invoked by pelican's core.
 
-        :param feed: An PodcastFeed instance.
+        :param feed: A PodcastFeed instance.
         :param item: An article (pelican's Article object).
 
         """
@@ -273,7 +273,7 @@ class iTunesWriter(Writer):
 
 
 class PodcastFeedGenerator(Generator):
-    """Generates an iTunes content by inspecting all articles and invoke the
+    """Generates an iTunes content by inspecting all articles and invokes the
     iTunesWriter object, which will write the itunes Feed."""
 
     def __init__(self, *args, **kwargs):
