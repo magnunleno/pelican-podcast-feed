@@ -25,6 +25,8 @@ ITEM_ELEMENTS = (
     'itunes:summary',
     'itunes:image',
     'enclosure',
+    'description',
+    'link',
     'guid',
     'pubDate',
     'itunes:duration',
@@ -154,13 +156,18 @@ class PodcastFeed(Rss201rev2Feed):
             # empty attributes will be ignored.
             if item[key] is None:
                 continue
-            if type(item[key]) in (str, unicode):
+            if key == 'description':
+                content = item[key]
+                handler.startElement('description', {})
+                if not isinstance(content, unicode):
+                    content = unicode(content, handler._encoding)
+                content = content.replace("<html><body>", "")
+                handler._write(content)
+                handler.endElement('description')
+            elif type(item[key]) in (str, unicode):
                 handler.addQuickElement(key, item[key])
             elif type(item[key]) is dict:
                 handler.addQuickElement(key, attrs=item[key])
-            else:
-                # Non-iTunes attributes will be ignored.
-                print 'Ignoring', item[key]
 
 
 class iTunesWriter(Writer):
@@ -215,7 +222,10 @@ class iTunesWriter(Writer):
             items['itunes:summary'] = item.description
         else:
             items['itunes:summary'] = Markup(item.summary).striptags()
-        items['description'] = items['itunes:summary']
+
+        items['description'] = "<![CDATA[{}]]>".format(
+            Markup(item.summary)
+            )
 
         # Date the article was last modified.
         #  ex: <pubDate>Fri, 13 Jun 2014 04:59:00 -0300</pubDate>
