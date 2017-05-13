@@ -307,7 +307,12 @@ class PodcastFeedGenerator(Generator):
         super(PodcastFeedGenerator, self).__init__(*args, **kwargs)
         # Initialize the number of episodes and where to save the feed.
         self.episodes = []
+        self.podcast_episodes = {}
         self.feed_path = self.settings.get('PODCAST_FEED_PATH', None)
+        self.podcasts = self.settings.get('PODCASTS',None)
+        if self.podcasts:
+            for show in self.podcasts:
+                self.podcast_episodes[show] = []
 
     def generate_context(self):
         """Looks for all 'published' articles and add them to the episodes
@@ -318,6 +323,13 @@ class PodcastFeedGenerator(Generator):
                 if (article.status.lower() == "published" and
                         hasattr(article, 'podcast')):
                     self.episodes.append(article)
+                    if self.podcasts:                
+                        if hasattr(article, 'category'):
+                            show = getattr(article, 'category').slug
+                            # Only articles in the individual feed categories
+                            if show in self.podcasts:
+                                self.episodes.append(article)
+                                self.podcast_episodes[show].append(article)
 
     def generate_output(self, writer):
         """Write out the iTunes feed to a file.
@@ -327,6 +339,10 @@ class PodcastFeedGenerator(Generator):
         if self.feed_path:
             writer = iTunesWriter(self.output_path, self.settings)
             writer.write_feed(self.episodes, self.context, self.feed_path)
+        if self.podcasts:
+            for show in self.podcasts:
+                writer = iTunesWriter(self.output_path, self.settings)
+                writer.write_feed(self.podcast_episodes[show], self.context, self.podcasts[show]['PODCAST_FEED_PATH'])
 
 
 def get_generators(generators):
