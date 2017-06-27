@@ -307,7 +307,12 @@ class PodcastFeedGenerator(Generator):
         super(PodcastFeedGenerator, self).__init__(*args, **kwargs)
         # Initialize the number of episodes and where to save the feed.
         self.episodes = []
+        self.podcast_episodes = {}
         self.feed_path = self.settings.get('PODCAST_FEED_PATH', None)
+        self.podcasts = self.settings.get('PODCASTS',None)
+        if self.podcasts:
+            for show in self.podcasts:
+                self.podcast_episodes[show] = []
 
     def generate_context(self):
         """Looks for all 'published' articles and add them to the episodes
@@ -318,6 +323,13 @@ class PodcastFeedGenerator(Generator):
                 if (article.status.lower() == "published" and
                         hasattr(article, 'podcast')):
                     self.episodes.append(article)
+                    if self.podcasts:                
+                        if hasattr(article, 'category'):
+                            show = getattr(article, 'category').slug
+                            # Only articles in the individual feed categories
+                            if show in self.podcasts:
+                                self.episodes.append(article)
+                                self.podcast_episodes[show].append(article)
 
     def generate_output(self, writer):
         """Write out the iTunes feed to a file.
@@ -327,6 +339,32 @@ class PodcastFeedGenerator(Generator):
         if self.feed_path:
             writer = iTunesWriter(self.output_path, self.settings)
             writer.write_feed(self.episodes, self.context, self.feed_path)
+        if self.podcasts:
+            # Backup all of the global settings
+            self.original_settings = {}
+            self.original_settings['PODCAST_FEED_PATH'] = self.settings.get('PODCAST_FEED_PATH',None)
+            self.original_settings['PODCAST_FEED_TITLE'] = self.settings.get('PODCAST_FEED_TITLE',None)
+            self.original_settings['PODCAST_FEED_EXPLICIT'] = self.settings.get('PODCAST_FEED_EXPLICIT',None)
+            self.original_settings['PODCAST_FEED_LANGUAGE'] = self.settings.get('PODCAST_FEED_LANGUAGE',None)
+            self.original_settings['PODCAST_FEED_COPYRIGHT'] = self.settings.get('PODCAST_FEED_COPYRIGHT',None)
+            self.original_settings['PODCAST_FEED_SUBTITLE'] = self.settings.get('PODCAST_FEED_SUBTITLE',None)
+            self.original_settings['PODCAST_FEED_AUTHOR'] = self.settings.get('PODCAST_FEED_AUTHOR',None)
+            self.original_settings['PODCAST_FEED_SUMMARY'] = self.settings.get('PODCAST_FEED_SUMMARY',None)
+            self.original_settings['PODCAST_FEED_IMAGE'] = self.settings.get('PODCAST_FEED_IMAGE',None)
+            self.original_settings['PODCAST_FEED_OWNER_NAME'] = self.settings.get('PODCAST_FEED_OWNER_NAME',None)
+            self.original_settings['PODCAST_FEED_OWNER_EMAIL'] = self.settings.get('PODCAST_FEED_OWNER_EMAIL',None)
+            self.original_settings['PODCAST_FEED_CATEGORY'] = self.settings.get('PODCAST_FEED_CATEGORY',None)
+            
+            for show in self.podcasts:
+                # Override the global settings with the per-show settings
+                self.settings.update(self.podcasts[show])
+
+                # Write out this podcast's feed
+                writer = iTunesWriter(self.output_path, self.settings)
+                writer.write_feed(self.podcast_episodes[show], self.context, self.podcasts[show]['PODCAST_FEED_PATH'])
+
+                # Restore the original global settings
+                self.settings.update(self.original_settings)
 
 
 def get_generators(generators):
